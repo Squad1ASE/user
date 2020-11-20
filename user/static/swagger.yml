@@ -1,0 +1,134 @@
+openapi: 3.0.1
+info:
+  title: User Service API
+  description: Users from GoOutSafe with Microservices
+  version: "0.1"
+servers:
+- url: /
+paths:
+  /users/create_user:
+    put:
+      tags:
+      - Users
+      summary: Create new user
+      operationId: views.user.create_user
+
+      requestBody:
+        description: New user to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+
+      responses:
+        200:
+          description: New user created
+        409:
+          description: User already exists
+        403:
+          description: Forbidden, cannot create admin or health authority
+  /users/edituser:
+    post:
+      tags:
+      - Users
+      summary: Edit user informations
+      operationId: views.user.edit_user
+
+      requestBody:
+        description: User to edit
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_user_email:
+                  $ref: '#/components/schemas/User/properties/email'
+                current_user_old_password:
+                  $ref: '#/components/schemas/User/properties/password'
+                current_user_new_password:
+                  $ref: '#/components/schemas/User/properties/password'
+                user_new_phone:
+                  $ref: '#/components/schemas/User/properties/phone'
+      responses:
+        200:
+          description: User information changed
+        401:
+          description: User current password is wrong or user doesn't exist
+  /users/getusers:
+    get:
+      tags:
+      - Users
+      summary: Get all users
+      operationId: views.user.get_users
+      responses:
+        200:
+          description: Return all users
+          content:
+            application/json:
+              schema:
+                type: array
+                properties:
+                  email:
+                    $ref: '#/components/schemas/User/properties/email'
+                  phone:
+                    $ref: '#/components/schemas/User/properties/phone'
+                  firstname:
+                    $ref: '#/components/schemas/User/properties/firstname'
+                  lastname:
+                    $ref: '#/components/schemas/User/properties/lastname'     
+    
+
+components:
+  schemas:
+    User:
+      required:
+      - id
+      - email
+      - phone
+      - firstname
+      - lastname
+      - password
+      - dateofbirth
+      - role
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier
+          readOnly: true
+          example: 123
+        email:
+          maxLength: 64
+          minLength: 1
+          type: string
+          description: User's email
+          example: "myawesomeemail@awesome.com"
+        phone:
+          minLength: 5
+          type: string
+          description: User's phone number
+          example: "55555"
+        firstname:
+          type: string
+          description: User's first name
+          example: "AwesomeFirstName"
+        lastname:
+          type: string
+          description: User's last name
+          example: "AwesomeLastName"
+        password:
+          minLength: 1
+          type: string
+          description: User's password
+          example: "My@w3s0mePassword"
+        dateofbirth:
+          type: string
+          description: User's birthdate
+          example: "10/10/2020"
+        role:
+          type: string
+          enum: ['customer', 'restaurant owner']
+          description: User's role
+          example: "customer"
