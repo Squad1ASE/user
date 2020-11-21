@@ -41,27 +41,8 @@ def create_user():
     db_session.commit()
     
     #return make_response('OK')
-    return connexion.problem(200, "OK", "User has been created")
+    return "OK"
 
-
-def get_user():
-    r = request.json
-
-    user = db_session.query(User).filter(User.email == email).first()
-            
-    if user is None:
-        # this shouldn't be explicitly reported in the API gateway
-        # because a malicious attacker could discover if the email exists or not
-        # in the DB
-        return connexion.problem(404, "Not Found", "Wrong email or password")
-    if user.authenticate(old_password) is False:
-        return connexion.problem(401, "Unauthorized", "Wrong email or password")
-
-    user_dict = dict(
-            (k,user[k]) 
-            for k in user.keys() if k != 'password'
-        )
-    return user_dict
 
 def edit_user():
     r = request.json
@@ -78,9 +59,39 @@ def edit_user():
             user.phone = phone
         user.set_password(new_password)
         db_session.commit()
-        return connexion.problem(200, "OK", "User details have been updated")
+        #return connexion.problem(200, "OK", "User details have been updated")
+        return "OK"
     else:
+        return connexion.problem(401, "Unauthorized", "Wrong password")
+
+
+def login():
+    r = request.json
+
+    user = db_session.query(User).filter(User.email == r['email']).first()
+            
+    if user is None:
+        # this shouldn't be explicitly reported in the API gateway
+        # because a malicious attacker could discover if the email exists or not
+        # in the DB
+        return connexion.problem(404, "Not Found", "Wrong email or password")
+    if user.authenticate(r['password']) is False:
         return connexion.problem(401, "Unauthorized", "Wrong email or password")
+    if user.is_active is False:
+        return connexion.problem(401, "Unauthorized", "This profile is going to be removed")
+
+    user_dict = dict(
+        id=user.id,
+        email=user.email,
+        phone=user.phone,
+        firstname=user.firstname,
+        lastname=user.lastname,
+        dateofbirth=user.dateofbirth,
+        role=user.role,
+        is_admin=user.is_admin,
+        is_anonymous=user.is_anonymous
+    )
+    return user_dict
 
 
 def delete_user():
