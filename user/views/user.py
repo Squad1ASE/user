@@ -1,12 +1,8 @@
 
-from database import User, db_session
+from database import User, db_session, Quarantine
 from flask import request, jsonify, abort, make_response
-from datetime import datetime
+from datetime import datetime, timedelta
 import connexion
-
-def get_users():
-    users = db_session.query(User).with_entities(User.email, User.phone, User.firstname, User.lastname).all()
-    return users
 
 
 def create_user():
@@ -44,6 +40,11 @@ def create_user():
     return "OK"
 
 
+def get_users():
+    users = db_session.query(User).with_entities(User.email, User.phone, User.firstname, User.lastname).all()
+    return users
+
+
 def edit_user():
     r = request.json
 
@@ -57,7 +58,8 @@ def edit_user():
     if (user is not None and user.authenticate(old_password)):
         if(user.phone != phone):
             user.phone = phone
-        user.set_password(new_password)
+        if(old_password != new_password):
+            user.set_password(new_password)
         db_session.commit()
         #return connexion.problem(200, "OK", "User details have been updated")
         return "OK"
@@ -80,6 +82,8 @@ def login():
     if user.is_active is False:
         return connexion.problem(401, "Unauthorized", "This profile is going to be removed")
 
+    # TODO add quarantine status, to avoid another call when user wants to place a booking
+    # he can't if he still positive
     user_dict = dict(
         id=user.id,
         email=user.email,
@@ -92,6 +96,95 @@ def login():
         is_anonymous=user.is_anonymous
     )
     return user_dict
+
+
+def get_user_medical_record():
+    #r = request.json
+    r = request.args.get("email")
+    user = db_session.query(User)\
+        .filter(
+            User.email == r
+        )\
+        .first()
+
+    # email isn't correct, user doesn't exist
+    if(user is None):
+        return connexion.problem(404, "Not Found", "Wrong email. Patient doesn't exist")
+
+    elif(user.role == 'ha' or user.role == 'admin'):
+        return connexion.problem(403, "Forbidden", "Health authority and Admin aren't patients")
+
+    getuserquarantine_status = db_session.query(Quarantine)\
+        .filter(
+            Quarantine.user_id == user.id,
+            Quarantine.in_observation == True
+        )\
+        .first()
+
+    # patient is in observation
+    if getuserquarantine_status is not None:
+        startdate = getuserquarantine_status.start_date
+        enddate = getuserquarantine_status.end_date
+        state = "patient already under observation"
+    else:
+        startdate = datetime.today()
+        enddate = startdate + timedelta(days=14)
+        state = "patient next under observation"
+
+    user_dict = dict(
+        email=user.email,
+        phone=user.phone,
+        firstname=user.firstname,
+        lastname=user.lastname,
+        dateofbirth=user.dateofbirth,
+        role=user.role,
+        startdate=startdate,
+        enddate=enddate,
+        state=state,
+    )
+    return user_dict
+
+def mark_positive():
+    r = request.args.get("email")
+
+    user = db_session.query(User)\
+        .filter(
+            User.email == r
+        )\
+        .first()
+
+    # email isn't correct, user doesn't exist
+    # this happens only under a malicious attack
+    if(user is None):
+        return connexion.problem(404, "Not Found", "Something is not working. This email doesn't exist")
+
+    elif(user.role == 'ha' or user.role == 'admin'):
+        return connexion.problem(403, "Forbidden", "Health authority and Admin aren't patients")
+
+    getuserquarantine_status = db_session.query(Quarantine)\
+        .filter(
+            Quarantine.user_id == user.id,
+            Quarantine.in_observation == True
+        )\
+        .first()
+    
+    if getuserquarantine_status is not None:
+        return connexion.problem(403, "Forbidden", "Can't mark a patient already under observation")
+
+
+    startdate = datetime.today()
+    enddate = startdate + timedelta(days=14)
+
+    quarantine = Quarantine()
+    quarantine.user_id = user.id
+    quarantine.start_date = startdate
+    quarantine.end_date = enddate
+    quarantine.in_observation = True
+
+    db_session.add(quarantine)
+    db_session.commit()
+
+    return "OK"
 
 
 def delete_user():

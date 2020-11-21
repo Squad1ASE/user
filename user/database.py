@@ -1,11 +1,11 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, Float, Text, Unicode, CheckConstraint
+from sqlalchemy import create_engine, Column, Integer, Float, Text, Unicode, CheckConstraint, ForeignKey, PickleType
 from sqlalchemy import Boolean, String, Date
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import validates, relationship
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from werkzeug.security import generate_password_hash, check_password_hash
-
+import datetime
 #DATABASEURI = os.environ['DATABASE_URI']
 db = declarative_base()
 #engine = create_engine(DATABASEURI, convert_unicode=True)
@@ -20,9 +20,32 @@ def init_db():
     except Exception as e:
         print(e)
 
+
+    ####### HEALTHY AUTHORITY PROFILE #######
+    q = db_session.query(User).filter(User.email == 'healthauthority@ha.com')
+    adm = q.first()
+    if adm is None:
+        try: 
+            example = User()
+            example.email = 'healthauthority@ha.com'
+            example.phone = '3333333333'
+            example.firstname = 'ha'
+            example.lastname = 'ha'
+            example.set_password('healthauthority')
+            example.dateofbirth = datetime.date(2020, 10, 5)
+            example.is_admin = True
+            example.role = 'ha'
+            db_session.add(example)
+            db_session.commit()
+        except Exception as e:
+            print(e)
+
+
 # the following consist of tables inside the db tables are defined using model
 class User(db):
     __tablename__ = 'user'
+    __table_args__ = {'sqlite_autoincrement': True}
+
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     email = Column(String, nullable=False, unique=True)  
@@ -72,3 +95,70 @@ class User(db):
     
     def serialize(self):
         return dict([(k,v) for k,v in self.__dict__.items() if k[0] != '_'])
+
+
+class Notification(db):
+    __tablename__ = 'notification'
+
+    NOTIFICATION_TYPE = ['contact_with_positive','reservation_canceled','reservation_with_positive']
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(Integer, ForeignKey('user.id'))
+    user = relationship('User', foreign_keys='Notification.user_id')
+
+    email = Column(Unicode(128), CheckConstraint('length(email) > 0'), nullable=False)  
+    message = Column(Unicode(128), CheckConstraint('length(message) > 0'), nullable=False)
+    pending = Column(Boolean, default=True)
+    type_ = Column(PickleType, nullable=False)  
+    # TODO check if date should be Date as used in User or Datetime (previously it was Datetime)
+    date = Column(Date, nullable=False)
+
+    @validates('user_id')
+    def validate_user_id(self, key, user_id):
+        if user_id is not None:
+            if (user_id <= 0): raise ValueError("user_id must be > 0")
+        return user_id
+        
+    @validates('email')
+    def validate_email(self, key, email):
+        if email is None: raise ValueError("type_ is None")
+        if (len(email) == 0): raise ValueError("email is empty")
+        if('@' and '.' in email): #min email possible: a@b.c
+            return email
+        raise ValueError('Wrong email syntax')
+
+    @validates('message')
+    def validate_message(self, key, message):
+        if (message is None): raise ValueError("message is None")
+        if (len(message) == 0): raise ValueError("message is empty")
+        return message
+    
+    @validates('pending')
+    def validate_pending(self, key, pending):
+        if (pending is None): raise ValueError("pending is None")
+        return pending
+
+    @validates('type_')
+    def validate_type_(self, key, type_):
+        if type_ is None: raise ValueError("type_ is None")
+        if not isinstance(type_, Notification.TYPE): raise ValueError("type_ is not a Notification.TYPE")
+        return type_
+
+    @validates('date')
+    def validate_date(self, key, date):
+        if (date is None): raise ValueError("date is None")
+        return date
+
+class Quarantine(db):
+    __tablename__ = 'quarantine'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(Integer, ForeignKey('user.id'))
+    user = relationship('User', foreign_keys='Quarantine.user_id')
+
+    start_date = Column(Date)
+    end_date = Column(Date)
+
+    in_observation = Column(Boolean, default=True) #True=can't book

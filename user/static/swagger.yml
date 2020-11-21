@@ -24,10 +24,33 @@ paths:
       responses:
         200:
           description: New user created
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User successfully created
         409:
           description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "User already exists"
+                status: 409
+                title: "Conflict"
+                type: "about:blank"
         403:
           description: Forbidden, cannot create admin or health authority
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Only customer or restaurant owner profiles are allowed"
+                status: 403
+                title: "Forbidden"
+                type: "about:blank"
     post:
       tags:
       - Users
@@ -53,8 +76,63 @@ paths:
       responses:
         200:
           description: User information changed
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User successfully edited
         401:
           description: User current password is wrong or user doesn't exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Wrong password"
+                status: 401
+                title: "Unauthorized"
+                type: "about:blank"
+    get:
+      tags:
+      - Users
+      summary: Get user medical records, this is used by health authority
+      operationId: views.user.get_user_medical_record
+      parameters:
+      - name: email
+        in: query
+        description: User's email (patient)
+        required: true 
+        example: "myawesomeemail@awesome.com"
+        schema:
+          type: string
+      responses:
+        200:
+          description: Return all users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    $ref: '#/components/schemas/User/properties/email'
+                  phone:
+                    $ref: '#/components/schemas/User/properties/phone'
+                  firstname:
+                    $ref: '#/components/schemas/User/properties/firstname'
+                  lastname:
+                    $ref: '#/components/schemas/User/properties/lastname'
+                  dateofbirth:
+                    $ref: '#/components/schemas/User/properties/dateofbirth'
+                  role:
+                    $ref: '#/components/schemas/User/properties/role'
+                  startdate:
+                    $ref: '#/components/schemas/Quarantine/properties/startdate'
+                  enddate:
+                    $ref: '#/components/schemas/Quarantine/properties/enddate'
+                  state:
+                    type: string
+                    example: patient next under observation
+  /userslist:
     get:
       tags:
       - Users
@@ -115,12 +193,53 @@ paths:
                     dateofbirth:
                       $ref: '#/components/schemas/User/properties/dateofbirth'  
                     role:
-                        $ref: '#/components/schemas/User/properties/role'  
+                      $ref: '#/components/schemas/User/properties/role'  
           404:
-            description: user not found
+            description: User not found
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+                example:
+                  detail: "Wrong email or password"
+                  status: 404
+                  title: "Not Found"
+                  type: "about:blank"
           401:
-            description: user password is wrong
-    
+            description: User password is wrong
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+                example:
+                  detail: "Wrong email or password"
+                  status: 401
+                  title: "Unauthorized"
+                  type: "about:blank"
+  /mark:
+    put:
+      tags:
+      - Users
+      summary: Mark a user as positive
+      operationId: views.user.mark_positive
+
+      parameters:
+      - name: email
+        in: query
+        description: User's email (patient)
+        required: true 
+        example: "myawesomeemail@awesome.com"
+        schema:
+          type: string
+
+      responses:
+        200:
+          description: Patient has been marked as positive
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Patient has been marked as positive
 
 components:
   schemas:
@@ -168,7 +287,7 @@ components:
         dateofbirth:
           type: string
           description: User's birthdate
-          example: "10/10/2020"
+          example: "10/10/1990"
         role:
           type: string
           enum: ['customer', 'owner']
@@ -186,3 +305,65 @@ components:
           type: boolean
           description: User is not logged in
           example: false
+    Error:
+      required:
+      - detail
+      - status
+      - title
+      - type
+      type: object
+      properties:
+        detail:
+          minLength: 1
+          type: string
+          description: Error detail
+          readOnly: true
+          example: "The server encountered an internal error and was unable to complete your request"
+        status:
+          minimum: 0
+          type: integer
+          description: Status code
+          readOnly: true
+          example: 500
+        title:
+          minLength: 1
+          type: string
+          description: Error title
+          readOnly: true
+          example: "Internal Server Error"
+        type:
+          minLength: 1
+          type: string
+          description: Error type
+          readOnly: true
+          example: "about:blank"
+    Quarantine:
+      required:
+      - id
+      - userid
+      - startdate
+      - enddate
+      - inobservation
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier
+          readOnly: true
+          example: 123
+        userid:
+          type: integer
+          description: User's id
+          example: 123
+        startdate:
+          type: string
+          description: Quarantine start date
+          example: "15/10/2020"
+        enddate:
+          type: string
+          description: Quarantine end date
+          example: "29/10/2020"
+        inobservation:
+          type: boolean
+          description: User is positive or not
+          example: true
