@@ -1,2 +1,2 @@
-# user
-User microservice
+# restaurant
+Restaurant microservice

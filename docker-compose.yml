@@ -1,0 +1,43 @@
+version: "3"
+services:
+  nginx-user:
+    container_name: nginx-user
+    build: nginx
+    ports:
+      - 8000:8000
+    depends_on:
+      - user
+    networks:
+      - default
+      - user-network
+
+  user:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment: 
+    - DATABASE_URI=postgresql://postgres:postgres@postgres-user:5432/postgres
+    ports:
+      - "5060-5070:5060"
+    links:
+      - postgres-user
+    networks:
+      - user-network
+    command: python user/app.py
+    depends_on:
+      - postgres-user
+
+  postgres-user:
+    container_name: postgres-user
+    hostname: postgres-user
+    restart: always
+    image: postgres:latest
+    environment: 
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    expose:
+      - "5432"
+    networks:
+      - user-network
+
+networks:
+  user-network:

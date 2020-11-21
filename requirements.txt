@@ -1,0 +1,13 @@
+flask
+flask-login
+psycopg2-binary
+celery
+redis
+flask-wtf
+flask-sqlalchemy
+pip-tools
+connexion[swagger-ui]
+email_validator
+pytest
+pytest-cov
+flask_mail==0.9.0
