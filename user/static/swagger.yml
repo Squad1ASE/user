@@ -95,49 +95,15 @@ paths:
     get:
       tags:
       - Users
-      summary: Get user medical records, this is used by health authority
-      operationId: views.user.get_user_medical_record
+      summary: Get all user if not filtered by email
+      operationId: views.user.get_users
       parameters:
       - name: email
         in: query
-        description: User's email (patient)
-        required: true 
+        description: User's email
         example: "myawesomeemail@awesome.com"
         schema:
           type: string
-      responses:
-        200:
-          description: Return all users
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  email:
-                    $ref: '#/components/schemas/User/properties/email'
-                  phone:
-                    $ref: '#/components/schemas/User/properties/phone'
-                  firstname:
-                    $ref: '#/components/schemas/User/properties/firstname'
-                  lastname:
-                    $ref: '#/components/schemas/User/properties/lastname'
-                  dateofbirth:
-                    $ref: '#/components/schemas/User/properties/dateofbirth'
-                  role:
-                    $ref: '#/components/schemas/User/properties/role'
-                  startdate:
-                    $ref: '#/components/schemas/Quarantine/properties/startdate'
-                  enddate:
-                    $ref: '#/components/schemas/Quarantine/properties/enddate'
-                  state:
-                    type: string
-                    example: patient next under observation
-  /userslist:
-    get:
-      tags:
-      - Users
-      summary: Get all users
-      operationId: views.user.get_users
       responses:
         200:
           description: Return all users
@@ -153,7 +119,18 @@ paths:
                   firstname:
                     $ref: '#/components/schemas/User/properties/firstname'
                   lastname:
-                    $ref: '#/components/schemas/User/properties/lastname'     
+                    $ref: '#/components/schemas/User/properties/lastname' 
+        404:
+          description: there are no user with this email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Wrong email. User doesn't exist"
+                status: 404
+                title: "Not Found"
+                type: "about:blank"     
   /login:
     post:
         tags:
@@ -216,10 +193,72 @@ paths:
                   status: 401
                   title: "Unauthorized"
                   type: "about:blank"
-  /mark:
+  /patient:
+    get:
+      tags:
+      - Quarantine
+      summary: Get patient's medical records (only health authority can do it)
+      operationId: views.user.get_user_medical_record
+      parameters:
+      - name: email
+        in: query
+        description: User's email (patient)
+        required: true 
+        example: "myawesomeemail@awesome.com"
+        schema:
+          type: string
+      responses:
+        200:
+          description: Return all users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    $ref: '#/components/schemas/User/properties/email'
+                  phone:
+                    $ref: '#/components/schemas/User/properties/phone'
+                  firstname:
+                    $ref: '#/components/schemas/User/properties/firstname'
+                  lastname:
+                    $ref: '#/components/schemas/User/properties/lastname'
+                  dateofbirth:
+                    $ref: '#/components/schemas/User/properties/dateofbirth'
+                  role:
+                    $ref: '#/components/schemas/User/properties/role'
+                  startdate:
+                    $ref: '#/components/schemas/Quarantine/properties/startdate'
+                  enddate:
+                    $ref: '#/components/schemas/Quarantine/properties/enddate'
+                  state:
+                    type: string
+                    example: patient next under observation
+        403:
+          description: healthy authority and admin aren't patients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Health authority and Admin aren't patients"
+                status: 403
+                title: "Forbidden"
+                type: "about:blank"
+        404:
+          description: there are no patient with this email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Wrong email. Patient doesn't exist"
+                status: 404
+                title: "Not Found"
+                type: "about:blank" 
     put:
       tags:
-      - Users
+      - Quarantine
       summary: Mark a user as positive
       operationId: views.user.mark_positive
 
@@ -240,6 +279,66 @@ paths:
               schema:
                 type: string
                 example: Patient has been marked as positive
+        403:
+          description: healthy authority and admin aren't patients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Health authority and Admin aren't patients"
+                status: 403
+                title: "Forbidden"
+                type: "about:blank"
+        404:
+          description: a malicious opponent tried to exploit the endpoint or an error occurred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Something is not working. This email doesn't exist"
+                status: 404
+                title: "Not Found"
+                type: "about:blank"
+  /notification:  
+    put:
+      tags:
+      - Notification
+      summary: Create a new notification
+      operationId: views.user.notification
+      requestBody:
+        description: Notification data
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    example: "myawesomeemail@awesome.com"
+                  notiftype:
+                    type: string
+                    example: "contact_with_positive"
+                  role:
+                    type: string
+                    example: "customer"
+                  date:
+                    type: string
+                    example: "11/11/2020  21:15:27"
+      responses:
+        200:
+          description: Create a new notification
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Notification added
+
+      
 
 components:
   schemas:

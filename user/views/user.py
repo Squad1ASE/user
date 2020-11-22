@@ -1,5 +1,5 @@
 
-from database import User, db_session, Quarantine
+from database import User, db_session, Quarantine, Notification
 from flask import request, jsonify, abort, make_response
 from datetime import datetime, timedelta
 import connexion
@@ -41,7 +41,19 @@ def create_user():
 
 
 def get_users():
-    users = db_session.query(User).with_entities(User.email, User.phone, User.firstname, User.lastname).all()
+    if 'email' in request.args:
+        users = db_session.query(User)\
+            .filter(User.email == request.args.get("email"))\
+            .with_entities(User.email, User.phone, User.firstname, User.lastname)\
+            .all()
+        print(users)
+        print(type(users))
+        if len(users) == 0:
+            return connexion.problem(404, "Not Found", "Wrong email. User doesn't exist")
+
+    else:
+        users = db_session.query(User).with_entities(User.email, User.phone, User.firstname, User.lastname).all()
+
     return users
 
 
@@ -144,6 +156,7 @@ def get_user_medical_record():
     )
     return user_dict
 
+
 def mark_positive():
     r = request.args.get("email")
 
@@ -214,3 +227,51 @@ def delete_user():
     db_session.commit()
 
     return make_response('OK') 
+
+def notification():
+    r = request.json
+    now = datetime.now()
+    for data in r:
+        notification = Notification()
+        notification.email = data['email']
+        notification.date = now
+        notification.type_ = data['notiftype']
+        timestamp = data['date']
+        ############# retrieving user id if the email is a registered user (customer or owner) #############
+        user = db_session.query(User).filter(User.email == data['email']).first()
+        if user is not None:
+            notification.user_id = user.id
+            notification.email = user.email
+            # TODO this if must be removed since after mark positive
+            # USER microservice will send email to RESERVATION which will reply
+            # withouth the positive user
+            '''
+            # the positive must not be alerted to have come into contact with itself
+            if positive.id == user.id:
+                continue
+            '''
+        if data['notiftype'] == "contact_with_positive":
+            if(data['role'] == "customer"):
+                notification.message = 'On ' + timestamp + ' you have been in contact with a positive. Get into quarantine!'
+            else:
+                notification.message = 'On ' + timestamp + ' there was a positive in your restaurant!'
+
+        if data['notiftype'] == "reservation_canceled":
+            notification.message = 'The reservation of the ' + data['tablename'] + ' table for the date ' + data['reservationdate'] + ' has been canceled'
+        
+        if data['notiftype'] == "reservation_with_positive":
+            message = 'The reservation of ' + timestamp + ' at table "' + data['tablename'] + '" of restaurant "' + data['restaurantname'] + '" has a positive among the guests.'
+            message = message + ' Contact the booker by email "' + data['bookeremail'] + '" or by phone ' + data['bookerphone']
+            notification.message = message
+
+
+
+        # check user deleted
+        if 'invalid_email' not in notification.email:
+            db_session.add(notification)
+    
+    db_session.commit()
+    return "OK"
+
+# TODO get notifiche utente
+# TODO users/{user_id}

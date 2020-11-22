@@ -142,7 +142,7 @@ class Notification(db):
     @validates('type_')
     def validate_type_(self, key, type_):
         if type_ is None: raise ValueError("type_ is None")
-        if not isinstance(type_, Notification.TYPE): raise ValueError("type_ is not a Notification.TYPE")
+        if type_ not in Notification.NOTIFICATION_TYPE: raise ValueError("type_ is not a Notification.TYPE")
         return type_
 
     @validates('date')
