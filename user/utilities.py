@@ -20,7 +20,7 @@ def insert_admin(db_session, app):
             example.role = 'admin'
             db_session.add(example)
             db_session.commit()
-
+'''
 def insert_ha(db, app):
     with app.app_context():
         ha = db.session.query(User).filter_by(email='healthauthority@ha.com').first()
@@ -36,7 +36,7 @@ def insert_ha(db, app):
             example.role = 'ha'
             db.session.add(example)
             db.session.commit()
-
+'''
 # customers
 customers_example = [
     dict(
@@ -232,7 +232,9 @@ def mark_patient_EP(test_client, email):
 def set_notification_EP(test_client, notificationslist):
 
     return test_client.put('/notification', json=notificationslist)
-###############
 
-def user_logout_EP(test_client):
-    return test_client.get('/logout', follow_redirects=True)
+def delete_user_EP(test_client, current_user_email):
+    
+    data = dict(current_user_email=current_user_email)
+
+    return test_client.delete('/users', json=data)

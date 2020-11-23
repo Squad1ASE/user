@@ -110,9 +110,6 @@ def login():
     if user.is_active is False:
         return connexion.problem(401, "Unauthorized", "This profile is going to be removed")
 
-    # TODO add quarantine status, to avoid another call when user wants to place a booking
-    # he can't if he still positive
-
     user_quarantine_status = db_session.query(Quarantine)\
         .filter(
             Quarantine.user_id == user.id,
@@ -268,6 +265,9 @@ def delete_user():
 
     user_to_delete = db_session.query(User).filter(User.email == current_user).first()
 
+    if user_to_delete is None:
+        return connexion.problem(404, "Not Found", "Something is not working. This email doesn't exist")
+
     # TODO waiting Emilio's microservice
     # TODO waiting Reservation microservice team
     '''
@@ -309,7 +309,7 @@ def notification():
             
             if get_email is not None:
                 notification.email = get_email.email
-                
+
             notification.user_id = int(data['id'])
 
         notification.message = data['message']

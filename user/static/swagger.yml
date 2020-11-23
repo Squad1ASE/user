@@ -131,6 +131,37 @@ paths:
                 status: 404
                 title: "Not Found"
                 type: "about:blank"    
+    delete:
+      tags:
+      - Users
+      summary: Select "active" value for a User as "false"
+      operationId: views.user.delete_user
+
+      requestBody:
+        description: Get email and password
+        required: true
+        content:
+          application/json:
+              schema:
+                type: object
+                properties:
+                  current_user_email:
+                    $ref: '#/components/schemas/User/properties/email'
+      responses:
+        200:
+          description: User is going to be deleted
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User is going to be deleted      
+        404:
+          description: User not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User not found         
   /users/{user_id}:
     get:
       tags:

@@ -4,13 +4,16 @@ from sqlalchemy import exc
 from datetime import datetime, timedelta
 from utilities import customers_example, restaurant_owner_example
 from utilities import create_user_EP, user_login_EP, edit_user_EP, get_users_EP, get_user_by_ID_EP
-from utilities import get_patient_EP, insert_admin, mark_patient_EP
+from utilities import get_patient_EP, insert_admin, mark_patient_EP, delete_user_EP
 from utilities import notification_contact_with_positive_customer
 from utilities import notification_contact_with_positive_owner
 from utilities import notification_reservation_canceled_owner
 from utilities import notification_reservation_with_positive_owner
 from utilities import set_notification_EP
 from werkzeug.security import generate_password_hash, check_password_hash
+from unittest import mock
+from unittest.mock import patch
+from api_call import RESERVATION_contact_tracing
 
 
 def test_unit_create(test_app):
@@ -184,12 +187,12 @@ def test_component_getusers(test_app):
     customer = sorted(customer, key=lambda k: k['email'])
     getusers_json = sorted(getusers_json, key=lambda k: k['email'])
 
-    assert len(getusers_json) == len(customer)
-    for i in range(0,len(getusers_json)):
-        assert getusers_json[i]['email'] == customer[i]['email']
-        assert getusers_json[i]['phone'] == customer[i]['phone']
-        assert getusers_json[i]['firstname'] == customer[i]['firstname']
-        assert getusers_json[i]['lastname'] == customer[i]['lastname']
+    assert len(getusers_json) == len(customer)+1 # +1 because there is health auth
+    for i in range(1,len(getusers_json)):
+        assert getusers_json[i]['email'] == customer[i-1]['email']
+        assert getusers_json[i]['phone'] == customer[i-1]['phone']
+        assert getusers_json[i]['firstname'] == customer[i-1]['firstname']
+        assert getusers_json[i]['lastname'] == customer[i-1]['lastname']
     
     
     ##### GET A SPECIFIC USER BY EMAIL #####
@@ -206,7 +209,8 @@ def test_component_getusers(test_app):
     assert get_users_EP(test_client, "nonexisting@user.com").status_code == 404
 
     ##### GET A SPECIFIC USER BY ID #####
-    getusers = get_user_by_ID_EP(test_client, "2")
+    user_ID = db_session.query(User).filter(User.email == customer[1]['email']).first()
+    getusers = get_user_by_ID_EP(test_client, str(user_ID.id))
     getusers_json = getusers.json
 
     assert getusers_json['email'] == customer[1]['email']
@@ -389,3 +393,20 @@ def test_component_notification(test_app):
 
     assert reply_json['notification'][0]['message'] == owner1_notification_dict[0]['message']
    
+
+def test_component_delete(test_app):
+    app, test_client = test_app
+
+    customer = customers_example[0]
+
+    create_user_EP(test_client, **customer)
+
+    assert delete_user_EP(test_client, "notexisting@email.com").status_code == 404
+
+    assert delete_user_EP(test_client, customer['email']).status_code == 200
+
+    assert user_login_EP(test_client, customer['email'], customer['password']).status_code == 401
+
+@patch('app.RESERVATION_contact_tracing')
+def test_component_contact_tracing(mock1, test_app):
+    mock1.return_value.status_code.return_value = 200
