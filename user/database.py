@@ -24,6 +24,7 @@ def init_db():
     ####### HEALTHY AUTHORITY PROFILE #######
     q = db_session.query(User).filter(User.email == 'healthauthority@ha.com')
     adm = q.first()
+    '''
     if adm is None:
         try: 
             example = User()
@@ -39,7 +40,7 @@ def init_db():
             db_session.commit()
         except Exception as e:
             print(e)
-
+    '''
 
 # the following consist of tables inside the db tables are defined using model
 class User(db):

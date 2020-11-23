@@ -130,7 +130,47 @@ paths:
                 detail: "Wrong email. User doesn't exist"
                 status: 404
                 title: "Not Found"
-                type: "about:blank"     
+                type: "about:blank"    
+  /users/{user_id}:
+    get:
+      tags:
+      - Users
+      summary: Get user by ID
+      operationId: views.user.get_user_by_ID
+      parameters:
+      - name: user_id
+        in: path
+        description: User's ID
+        example: 1
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Return user with required ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    $ref: '#/components/schemas/User/properties/email'
+                  phone:
+                    $ref: '#/components/schemas/User/properties/phone'
+                  firstname:
+                    $ref: '#/components/schemas/User/properties/firstname'
+                  lastname:
+                    $ref: '#/components/schemas/User/properties/lastname' 
+        404:
+          description: there are no user with this ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Wrong ID. User doesn't exist"
+                status: 404
+                title: "Not Found"
+                type: "about:blank"      
   /login:
     post:
         tags:

@@ -46,8 +46,7 @@ def get_users():
             .filter(User.email == request.args.get("email"))\
             .with_entities(User.email, User.phone, User.firstname, User.lastname)\
             .all()
-        print(users)
-        print(type(users))
+
         if len(users) == 0:
             return connexion.problem(404, "Not Found", "Wrong email. User doesn't exist")
 
@@ -55,6 +54,23 @@ def get_users():
         users = db_session.query(User).with_entities(User.email, User.phone, User.firstname, User.lastname).all()
 
     return users
+
+
+def get_user_by_ID(user_id):
+    user = db_session.query(User)\
+            .filter(User.id == user_id)\
+            .first()
+    
+    if user is None:
+        return connexion.problem(404, "Not Found", "Wrong ID. User doesn't exist")
+
+    data = dict(
+        email=user.email,
+        phone=user.phone,
+        firstname=user.firstname,
+        lastname=user.lastname
+    )
+    return data
 
 
 def edit_user():
@@ -139,7 +155,7 @@ def get_user_medical_record():
         enddate = getuserquarantine_status.end_date
         state = "patient already under observation"
     else:
-        startdate = datetime.today()
+        startdate = datetime.today().date()
         enddate = startdate + timedelta(days=14)
         state = "patient next under observation"
 
@@ -185,7 +201,7 @@ def mark_positive():
         return connexion.problem(403, "Forbidden", "Can't mark a patient already under observation")
 
 
-    startdate = datetime.today()
+    startdate = datetime.today().date()
     enddate = startdate + timedelta(days=14)
 
     quarantine = Quarantine()
@@ -241,6 +257,7 @@ def notification():
         user = db_session.query(User).filter(User.email == data['email']).first()
         if user is not None:
             notification.user_id = user.id
+            # TODO the following line is useless maybe
             notification.email = user.email
             # TODO this if must be removed since after mark positive
             # USER microservice will send email to RESERVATION which will reply
