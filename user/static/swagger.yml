@@ -193,12 +193,14 @@ paths:
 
         responses:
           200:
-            description: Return email, phone, firstname, lastname, dateofbirth, role
+            description: Return id, email, phone, firstname, lastname, dateofbirth, role
             content:
               application/json:
                 schema:
-                  type: array
+                  type: object
                   properties:
+                    id:
+                      $ref: '#/components/schemas/User/properties/id'
                     email:
                       $ref: '#/components/schemas/User/properties/email'
                     phone:
@@ -210,7 +212,17 @@ paths:
                     dateofbirth:
                       $ref: '#/components/schemas/User/properties/dateofbirth'  
                     role:
-                      $ref: '#/components/schemas/User/properties/role'  
+                      $ref: '#/components/schemas/User/properties/role' 
+                    is_admin:
+                      $ref: '#/components/schemas/User/properties/is_admin' 
+                    is_anonymous:
+                      $ref: '#/components/schemas/User/properties/is_anonymous' 
+                    notification:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Notification' 
+
+
           404:
             description: User not found
             content:
@@ -363,12 +375,9 @@ paths:
                   notiftype:
                     type: string
                     example: "contact_with_positive"
-                  role:
+                  message:
                     type: string
-                    example: "customer"
-                  date:
-                    type: string
-                    example: "11/11/2020  21:15:27"
+                    example: "On  DATE(X) you have been in contact with a positive. Get into quarantine!"
       responses:
         200:
           description: Create a new notification
@@ -506,3 +515,17 @@ components:
           type: boolean
           description: User is positive or not
           example: true
+    Notification:
+      required:
+      - date
+      - message
+      type: object
+      properties:
+        date:
+          type: string
+          description: Notification date
+          example: "25/11/2020"
+        message:
+          type: string
+          description: The notification content
+          example: "On 23/11/2020 you have been in contact with a positive. Get into quarantine!"

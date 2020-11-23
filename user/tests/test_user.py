@@ -59,6 +59,7 @@ def test_unit_create(test_app):
         assert True
     assert count_assert == 1
 
+
 def test_component_create(test_app):
     app, test_client = test_app
 
@@ -250,6 +251,7 @@ def test_component_get_patient(test_app):
     ##### GET ADMIN MEDICAL RECORD AS PATIENT BY EMAIL #####
     assert get_patient_EP(test_client, "admin@admin.com").status_code == 403
 
+
 def test_component_mark_patient(test_app):
     app, test_client = test_app
 
@@ -289,22 +291,101 @@ def test_component_mark_patient(test_app):
     ##### MARK ADMIN AS POSITIVE #####
     assert mark_patient_EP(test_client, "admin@admin.com").status_code == 403
     
+
 def test_component_notification(test_app):
     app, test_client = test_app
 
-    customer = customers_example[0]
-    owner = restaurant_owner_example[0]
-    create_user_EP(test_client, **customer)
-    create_user_EP(test_client, **owner)
+    customer = [None] * 3
+    customer[0] = customers_example[0]
+    customer[1] = customers_example[1]
+    customer[2] = customers_example[2]
 
-    ##### ALERT CUSTOMER ABOUT POSITIVE CONTACT #####
-    assert set_notification_EP(test_client, **notification_contact_with_positive_customer).status_code == 200
+    create_user_EP(test_client, **customer[0])
+    create_user_EP(test_client, **customer[1])
+    create_user_EP(test_client, **customer[2])
 
-    ##### ALERT OWNER ABOUT POSITIVE CONTACT #####
-    assert set_notification_EP(test_client, **notification_contact_with_positive_owner).status_code == 200
 
-    ##### ALERT OWNER ABOUT CANCELED RESERVATION #####
-    assert set_notification_EP(test_client, **notification_reservation_canceled_owner).status_code == 200
+    owner = [None] * 2
+    owner[0] = restaurant_owner_example[0]
+    owner[1] = restaurant_owner_example[1]
 
-    ##### ALERT OWNER ABOUT RESERVATION WITH A POSITIVE TESTED CUSTOMER #####
-    assert set_notification_EP(test_client, **notification_reservation_with_positive_owner).status_code == 200
+    create_user_EP(test_client, **owner[0])
+    create_user_EP(test_client, **owner[1])
+
+    owner_0_id = db_session.query(User).filter(User.email == owner[0]['email']).first().id
+    owner_1_id = db_session.query(User).filter(User.email == owner[1]['email']).first().id
+
+    customer0_notification_dict = [
+        dict(
+            email=customer[0]['email'],
+            message="On  DATE(X) you have been in contact with a positive. Get into quarantine!",
+            notiftype= "contact_with_positive"
+        )       
+    ]
+
+    customer01_and_owner0_notification_dict = [
+        dict(
+            email=customer[0]['email'],
+            message="On  DATE(Y) you have been in contact with a positive. Get into quarantine!",
+            notiftype= "contact_with_positive"
+        ),
+        dict(
+            email=customer[1]['email'],
+            message="On  DATE(Y) you have been in contact with a positive. Get into quarantine!",
+            notiftype= "contact_with_positive"
+        ),
+        dict(
+            id=owner_0_id,
+            message="On DATE(Y) there was a positive in your restaurant!",
+            notiftype= "contact_with_positive"
+        )
+    ]
+
+    owner1_notification_dict = [
+        dict(
+            email=owner[1]['email'],
+            message="The reservation of the TABLENAME(A) table for the date DATE(Z) has been canceled",
+            notiftype= "reservation_canceled"
+        )       
+    ]
+
+    ##### ALERT CUSTOMER 0 ABOUT POSITIVE CONTACT ON DATE(X) #####
+    assert set_notification_EP(test_client, customer0_notification_dict).status_code == 200
+    
+    reply = user_login_EP(test_client, customer[0]['email'], customer[0]['password'])
+    reply_json = reply.json
+
+    assert reply_json['notification'][0]['message'] == customer0_notification_dict[0]['message']
+
+
+    ##### ALERT CUSTOMER 0, CUSTOMER 1, OWNER 0 - ABOUT POSITIVE CONTACT ON DATE(Y) #####
+    assert set_notification_EP(test_client, customer01_and_owner0_notification_dict).status_code == 200
+    
+    ### check notifications on CUSTOMER 0
+    reply = user_login_EP(test_client, customer[0]['email'], customer[0]['password'])
+    reply_json = reply.json
+
+    assert reply_json['notification'][0]['message'] == customer0_notification_dict[0]['message']
+    assert reply_json['notification'][1]['message'] == customer01_and_owner0_notification_dict[0]['message']
+
+    ### check notifications on CUSTOMER 1
+    reply = user_login_EP(test_client, customer[1]['email'], customer[1]['password'])
+    reply_json = reply.json
+
+    assert reply_json['notification'][0]['message'] == customer01_and_owner0_notification_dict[1]['message']
+
+    ### check notifications on OWNER 0
+    reply = user_login_EP(test_client, owner[0]['email'], owner[0]['password'])
+    reply_json = reply.json
+
+    assert reply_json['notification'][0]['message'] == customer01_and_owner0_notification_dict[2]['message']
+
+
+    ##### ALERT OWNER 1 ABOUT CANCELED RESERVATION #####
+    assert set_notification_EP(test_client, owner1_notification_dict).status_code == 200
+    
+    reply = user_login_EP(test_client, owner[1]['email'], owner[1]['password'])
+    reply_json = reply.json
+
+    assert reply_json['notification'][0]['message'] == owner1_notification_dict[0]['message']
+   

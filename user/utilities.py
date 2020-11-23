@@ -229,40 +229,9 @@ def mark_patient_EP(test_client, email):
 
     return test_client.put('/patient?email='+email)
 
-def set_notification_EP(test_client, email, notiftype, date, role, tablename="", reservationdate="", restaurantname="", bookeremail="", bookerphone=""):
-    if notiftype == "contact_with_positive":
-        data = dict(
-            email=email,
-            notiftype=notiftype,
-            date=date,
-            role=role
-        )
-    elif notiftype == "reservation_canceled":
-        data = dict(
-            email=email,
-            notiftype=notiftype,
-            date=date,
-            role=role,
-            tablename=tablename,
-            reservationdate=reservationdate
-        )
-    elif notiftype == "reservation_with_positive":
-        data = dict(
-            email=email,
-            notiftype=notiftype,
-            date=date,
-            role=role,
-            tablename=tablename,
-            reservationdate=reservationdate,
-            restaurantname=restaurantname,
-            bookeremail=bookeremail,
-            bookerphone=bookerphone
-        )
+def set_notification_EP(test_client, notificationslist):
 
-    data_list = list()
-    data_list.append(data)
-
-    return test_client.put('/notification', json=data_list)
+    return test_client.put('/notification', json=notificationslist)
 ###############
 
 def user_logout_EP(test_client):

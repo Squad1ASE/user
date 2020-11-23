@@ -1,5 +1,6 @@
 import connexion, logging, database
 from flask import jsonify
+from celery import Celery
 
 def create_app():
     logging.basicConfig(level=logging.INFO)
@@ -19,3 +20,34 @@ def shutdown_session(exception=None):
 
 if __name__ == '__main__':
     app.run(port=5060)
+
+def make_celery(app):
+    celery = Celery(
+        app.import_name,
+        #broker=os.environ['CELERY_BROKER_URL'],
+        #backend=os.environ['CELERY_BACKEND_URL']
+        backend='redis://localhost:6379',
+        broker='redis://localhost:6379'
+    )
+    celery.conf.update(app.config)
+    celery.conf.beat_schedule = {'test': {
+        'task': 'print_hello',
+        'schedule': 10.0
+    }
+
+    }
+
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
+celery = make_celery(app)
+
+
+@celery.task
+def print_hello():
+    print('Hello from Celery!')

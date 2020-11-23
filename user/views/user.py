@@ -26,7 +26,7 @@ def create_user():
     
     # TODO controllare
     # forse questo controllo può essere rimosso visto che da swagger
-    # consento solo customer o owner come possibili valori, altrimenti 
+    # consento solo customer o owner come possibili valori, altrimenti
     # connexion restituisce un BAD REQUEST
     '''
     if new_user.role != 'customer' and new_user.role != 'owner':
@@ -112,6 +112,49 @@ def login():
 
     # TODO add quarantine status, to avoid another call when user wants to place a booking
     # he can't if he still positive
+
+    user_quarantine_status = db_session.query(Quarantine)\
+        .filter(
+            Quarantine.user_id == user.id,
+            Quarantine.in_observation == True
+        ).first()
+
+    in_observation = False
+    if user_quarantine_status is not None:
+        in_observation = True
+
+    user_notification = db_session.query(Notification)\
+        .filter(
+            Notification.user_id == user.id
+        )\
+        .with_entities(Notification.message, Notification.date)\
+        .all()
+
+    '''
+    print(user_notification)
+    print(type(user_notification[0]))
+    print(user_notification)
+
+    user_notification_dict = [n.__dict__ for n in user_notification]
+    print(user_notification_dict)
+    print(type(user_notification_dict))
+    print(type(user_notification_dict[0]))
+
+    user_notification_dict = sorted(user_notification_dict, key=lambda k: k['date'])
+    print(user_notification_dict)
+    '''
+    notification_list = []
+    for notification in user_notification:
+        temp = dict()
+        if isinstance(notification[0], str):
+            temp['message'] = notification[0]
+            temp['date'] = notification[1]
+        else:
+            temp['date'] = notification[0]
+            temp['message'] = notification[1]
+
+        notification_list.append(temp)
+
     user_dict = dict(
         id=user.id,
         email=user.email,
@@ -121,7 +164,9 @@ def login():
         dateofbirth=user.dateofbirth,
         role=user.role,
         is_admin=user.is_admin,
-        is_anonymous=user.is_anonymous
+        is_anonymous=user.is_anonymous,
+        in_observation=in_observation,
+        notification=notification_list
     )
     return user_dict
 
@@ -247,41 +292,29 @@ def delete_user():
 def notification():
     r = request.json
     now = datetime.now()
+
     for data in r:
         notification = Notification()
-        notification.email = data['email']
-        notification.date = now
+
+        if 'email' in data:
+            get_id = db_session.query(User).filter(User.email == data['email']).first()
+
+            if get_id is not None:
+                notification.user_id = get_id.id
+
+            notification.email = data['email']
+
+        elif 'id' in data:
+            get_email = db_session.query(User).filter(User.id == int(data['id'])).first()
+            
+            if get_email is not None:
+                notification.email = get_email.email
+                
+            notification.user_id = int(data['id'])
+
+        notification.message = data['message']
         notification.type_ = data['notiftype']
-        timestamp = data['date']
-        ############# retrieving user id if the email is a registered user (customer or owner) #############
-        user = db_session.query(User).filter(User.email == data['email']).first()
-        if user is not None:
-            notification.user_id = user.id
-            # TODO the following line is useless maybe
-            notification.email = user.email
-            # TODO this if must be removed since after mark positive
-            # USER microservice will send email to RESERVATION which will reply
-            # withouth the positive user
-            '''
-            # the positive must not be alerted to have come into contact with itself
-            if positive.id == user.id:
-                continue
-            '''
-        if data['notiftype'] == "contact_with_positive":
-            if(data['role'] == "customer"):
-                notification.message = 'On ' + timestamp + ' you have been in contact with a positive. Get into quarantine!'
-            else:
-                notification.message = 'On ' + timestamp + ' there was a positive in your restaurant!'
-
-        if data['notiftype'] == "reservation_canceled":
-            notification.message = 'The reservation of the ' + data['tablename'] + ' table for the date ' + data['reservationdate'] + ' has been canceled'
-        
-        if data['notiftype'] == "reservation_with_positive":
-            message = 'The reservation of ' + timestamp + ' at table "' + data['tablename'] + '" of restaurant "' + data['restaurantname'] + '" has a positive among the guests.'
-            message = message + ' Contact the booker by email "' + data['bookeremail'] + '" or by phone ' + data['bookerphone']
-            notification.message = message
-
-
+        notification.date = now
 
         # check user deleted
         if 'invalid_email' not in notification.email:
@@ -289,6 +322,3 @@ def notification():
     
     db_session.commit()
     return "OK"
-
-# TODO get notifiche utente
-# TODO users/{user_id}

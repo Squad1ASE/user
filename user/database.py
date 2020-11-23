@@ -163,3 +163,5 @@ class Quarantine(db):
     end_date = Column(Date)
 
     in_observation = Column(Boolean, default=True) #True=can't book
+
+    contact_tracing_done = Column(Boolean, default=False)
