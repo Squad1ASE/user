@@ -127,28 +127,12 @@ def login():
         .with_entities(Notification.message, Notification.date)\
         .all()
 
-    '''
-    print(user_notification)
-    print(type(user_notification[0]))
-    print(user_notification)
-
-    user_notification_dict = [n.__dict__ for n in user_notification]
-    print(user_notification_dict)
-    print(type(user_notification_dict))
-    print(type(user_notification_dict[0]))
-
-    user_notification_dict = sorted(user_notification_dict, key=lambda k: k['date'])
-    print(user_notification_dict)
-    '''
     notification_list = []
     for notification in user_notification:
         temp = dict()
         if isinstance(notification[0], str):
             temp['message'] = notification[0]
             temp['date'] = notification[1]
-        else:
-            temp['date'] = notification[0]
-            temp['message'] = notification[1]
 
         notification_list.append(temp)
 
@@ -183,7 +167,9 @@ def get_user_medical_record():
 
     elif(user.role == 'ha' or user.role == 'admin'):
         return connexion.problem(403, "Forbidden", "Health authority and Admin aren't patients")
-
+    elif(user.is_active is False):
+        return connexion.problem(403, "Forbidden", "User is going to be deleted")
+    
     getuserquarantine_status = db_session.query(Quarantine)\
         .filter(
             Quarantine.user_id == user.id,
@@ -287,7 +273,7 @@ def delete_user():
     user_to_delete.is_active = False
     db_session.commit()
 
-    return make_response('OK') 
+    return 'OK' 
 
 def notification():
     r = request.json

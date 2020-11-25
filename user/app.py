@@ -81,6 +81,7 @@ def del_inactive_users():
             user.dateofbirth = None 
             database.db_session.commit()
 
+@celery.task
 def launch_contact_tracing():
 
     quarantine_users_no_contact = database.db_session.query(Quarantine).filter(
