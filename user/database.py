@@ -6,6 +6,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
+from static.enum import NOTIFICATION_TYPE
+
 #DATABASEURI = os.environ['DATABASE_URI']
 db = declarative_base()
 #engine = create_engine(DATABASEURI, convert_unicode=True)
@@ -101,8 +103,6 @@ class User(db):
 class Notification(db):
     __tablename__ = 'notification'
 
-    NOTIFICATION_TYPE = ['contact_with_positive','reservation_canceled','reservation_with_positive']
-
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     user_id = Column(Integer, ForeignKey('user.id'))
@@ -143,7 +143,7 @@ class Notification(db):
     @validates('type_')
     def validate_type_(self, key, type_):
         if type_ is None: raise ValueError("type_ is None")
-        if type_ not in Notification.NOTIFICATION_TYPE: raise ValueError("type_ is not a Notification.TYPE")
+        if type_ not in NOTIFICATION_TYPE: raise ValueError("type_ is not a Notification.TYPE")
         return type_
 
     @validates('date')

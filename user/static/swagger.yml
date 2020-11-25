@@ -40,58 +40,6 @@ paths:
                 status: 409
                 title: "Conflict"
                 type: "about:blank"
-        403:
-          description: Forbidden, cannot create admin or health authority
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                detail: "Only customer or restaurant owner profiles are allowed"
-                status: 403
-                title: "Forbidden"
-                type: "about:blank"
-    post:
-      tags:
-      - Users
-      summary: Edit user informations
-      operationId: views.user.edit_user
-
-      requestBody:
-        description: User to edit
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                current_user_email:
-                  $ref: '#/components/schemas/User/properties/email'
-                current_user_old_password:
-                  $ref: '#/components/schemas/User/properties/password'
-                current_user_new_password:
-                  $ref: '#/components/schemas/User/properties/password'
-                user_new_phone:
-                  $ref: '#/components/schemas/User/properties/phone'
-      responses:
-        200:
-          description: User information changed
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: User successfully edited
-        401:
-          description: User current password is wrong or user doesn't exist
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                detail: "Wrong password"
-                status: 401
-                title: "Unauthorized"
-                type: "about:blank"
     get:
       tags:
       - Users
@@ -104,6 +52,7 @@ paths:
         example: "myawesomeemail@awesome.com"
         schema:
           type: string
+          pattern: '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
       responses:
         200:
           description: Return all users
@@ -131,37 +80,7 @@ paths:
                 status: 404
                 title: "Not Found"
                 type: "about:blank"    
-    delete:
-      tags:
-      - Users
-      summary: Select "active" value for a User as "false"
-      operationId: views.user.delete_user
-
-      requestBody:
-        description: Get email and password
-        required: true
-        content:
-          application/json:
-              schema:
-                type: object
-                properties:
-                  current_user_email:
-                    $ref: '#/components/schemas/User/properties/email'
-      responses:
-        200:
-          description: User is going to be deleted
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: User is going to be deleted      
-        404:
-          description: User not found
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: User not found         
+      
   /users/{user_id}:
     get:
       tags:
@@ -172,9 +91,11 @@ paths:
       - name: user_id
         in: path
         description: User's ID
+        required: true
         example: 1
         schema:
           type: integer
+          minimum: 1
       responses:
         200:
           description: Return user with required ID
@@ -201,14 +122,104 @@ paths:
                 detail: "Wrong ID. User doesn't exist"
                 status: 404
                 title: "Not Found"
-                type: "about:blank"      
+                type: "about:blank"  
+    post:
+      tags:
+      - Users
+      summary: Edit user informations
+      operationId: views.user.edit_user
+      parameters:
+      - name: user_id
+        in: path
+        description: User's ID
+        required: true
+        example: 1
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        description: User to edit
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - current_user_old_password
+              type: object
+              properties:
+                current_user_old_password:
+                  $ref: '#/components/schemas/User/properties/password'
+                current_user_new_password:
+                  $ref: '#/components/schemas/User/properties/password'
+                user_new_phone:
+                  $ref: '#/components/schemas/User/properties/phone'
+              minProperties: 2
+      responses:
+        200:
+          description: User information changed
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User successfully edited
+        401:
+          description: User current password is wrong or user doesn't exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Wrong password"
+                status: 401
+                title: "Unauthorized"
+                type: "about:blank"    
+    delete:
+      tags:
+      - Users
+      summary: Delete user
+      operationId: views.user.delete_user
+      parameters:
+      - name: user_id
+        in: path
+        description: User's ID
+        required: true
+        example: 1
+        schema:
+          type: integer
+          minimum: 1
+      requestBody:
+        description: Get email and password
+        required: true
+        content:
+          application/json:
+              schema:
+                required:
+                - current_user_password
+                type: object
+                properties:
+                  current_user_password:
+                    $ref: '#/components/schemas/User/properties/password'
+      responses:
+        200:
+          description: User is going to be deleted
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User is going to be deleted      
+        404:
+          description: User not found
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User not found       
   /login:
     post:
         tags:
         - Users
         summary: Get information about user if credential are correct
         operationId: views.user.login
-
         requestBody:
           description: Get email and password
           required: true
@@ -221,7 +232,6 @@ paths:
                     $ref: '#/components/schemas/User/properties/email'
                   password:
                     $ref: '#/components/schemas/User/properties/password'
-
         responses:
           200:
             description: Return id, email, phone, firstname, lastname, dateofbirth, role
@@ -252,8 +262,6 @@ paths:
                       type: array
                       items:
                         $ref: '#/components/schemas/Notification' 
-
-
           404:
             description: User not found
             content:
@@ -290,6 +298,7 @@ paths:
         example: "myawesomeemail@awesome.com"
         schema:
           type: string
+          pattern: '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
       responses:
         200:
           description: Return all users
@@ -344,7 +353,6 @@ paths:
       - Quarantine
       summary: Mark a user as positive
       operationId: views.user.mark_positive
-
       parameters:
       - name: email
         in: query
@@ -353,7 +361,7 @@ paths:
         example: "myawesomeemail@awesome.com"
         schema:
           type: string
-
+          pattern: '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
       responses:
         200:
           description: Patient has been marked as positive
@@ -388,27 +396,19 @@ paths:
     put:
       tags:
       - Notification
-      summary: Create a new notification
+      summary: Create new notifications
       operationId: views.user.notification
       requestBody:
-        description: Notification data
+        description: Notification list
         required: true
         content:
           application/json:
             schema:
               type: array
               items:
-                type: object
-                properties:
-                  email:
-                    type: string
-                    example: "myawesomeemail@awesome.com"
-                  notiftype:
-                    type: string
-                    example: "contact_with_positive"
-                  message:
-                    type: string
-                    example: "On  DATE(X) you have been in contact with a positive. Get into quarantine!"
+                oneOf:
+                  - $ref: '#/components/schemas/NotificationByEmail'
+                  - $ref: '#/components/schemas/NotificationByID'
       responses:
         200:
           description: Create a new notification
@@ -418,7 +418,6 @@ paths:
                 type: string
                 example: Notification added
 
-      
 
 components:
   schemas:
@@ -435,6 +434,7 @@ components:
       type: object
       properties:
         id:
+          minimum: 1
           type: integer
           description: Unique identifier
           readOnly: true
@@ -443,23 +443,30 @@ components:
           maxLength: 64
           minLength: 1
           type: string
+          pattern: '^[a-z0-9]+[\._]?[a-z0-9]+[@]\w+[.]\w+$'
           description: User's email
           example: "myawesomeemail@awesome.com"
         phone:
           minLength: 5
+          maxLength: 20
           type: string
           description: User's phone number
           example: "55555"
         firstname:
+          maxLength: 64
+          minLength: 1
           type: string
           description: User's first name
           example: "AwesomeFirstName"
         lastname:
+          maxLength: 64
+          minLength: 1
           type: string
           description: User's last name
           example: "AwesomeLastName"
         password:
           minLength: 8
+          maxLength: 64
           type: string
           description: User's password
           example: "My@w3s0mePassword"
@@ -467,6 +474,7 @@ components:
           type: string
           description: User's birthdate
           example: "10/10/1990"
+          pattern: '^\d{2}/\d{2}/\d{4}$'
         role:
           type: string
           enum: ['customer', 'owner']
@@ -476,14 +484,17 @@ components:
           type: boolean
           description: User is an active account or is going to be deleted
           example: true
+          readOnly: true
         is_admin:
           type: boolean
           description: User is admin or not
           example: false
+          readOnly: true
         is_anonymous:
           type: boolean
           description: User is not logged in
           example: false
+          readOnly: true
     Error:
       required:
       - detail
@@ -526,11 +537,13 @@ components:
       type: object
       properties:
         id:
+          minimum: 1
           type: integer
           description: Unique identifier
           readOnly: true
           example: 123
         userid:
+          minimum: 1
           type: integer
           description: User's id
           example: 123
@@ -538,25 +551,71 @@ components:
           type: string
           description: Quarantine start date
           example: "15/10/2020"
+          pattern: '^\d{2}/\d{2}/\d{4}$'
         enddate:
           type: string
           description: Quarantine end date
           example: "29/10/2020"
+          pattern: '^\d{2}/\d{2}/\d{4}$'
+          readOnly: true
         inobservation:
           type: boolean
           description: User is positive or not
           example: true
+          readOnly: true
     Notification:
       required:
       - date
       - message
+      - notiftype
       type: object
       properties:
         date:
           type: string
           description: Notification date
           example: "25/11/2020"
+          pattern: '^\d{2}/\d{2}/\d{4}$'
         message:
+          maxLength: 128
+          minLength: 1
           type: string
           description: The notification content
           example: "On 23/11/2020 you have been in contact with a positive. Get into quarantine!"
+        notiftype:
+          type: string
+          enum: ['contact_with_positive','reservation_canceled','reservation_with_positive']
+          description: Notification type
+          example: "contact_with_positive"
+    NotificationByEmail:
+      required:
+        - email
+        - notiftype
+        - message
+      type: object
+      properties:
+        email:
+          $ref: '#/components/schemas/User/properties/email'
+        notiftype:
+          $ref: '#/components/schemas/Notification/properties/notiftype'
+        message:
+          $ref: '#/components/schemas/Notification/properties/message'
+      minProperties: 3
+      maxProperties: 3
+    NotificationByID:
+      required:
+        - id
+        - notiftype
+        - message
+      type: object
+      properties:
+        id:
+          minimum: 1
+          type: integer
+          description: Unique identifier of the user
+          example: 123
+        notiftype:
+          $ref: '#/components/schemas/Notification/properties/notiftype'
+        message:
+          $ref: '#/components/schemas/Notification/properties/message'
+      minProperties: 3
+      maxProperties: 3

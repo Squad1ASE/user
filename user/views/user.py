@@ -14,7 +14,6 @@ def create_user():
         # already registered
         return connexion.problem(409, "Conflict", "User already exists")
     
-
     new_user = User()
     new_user.email = r['email']
     new_user.phone = r['phone']
@@ -23,20 +22,10 @@ def create_user():
     new_user.set_password(r['password'])
     new_user.dateofbirth = datetime.strptime(r['dateofbirth'], "%d/%m/%Y")
     new_user.role = r['role']
-    
-    # TODO controllare
-    # forse questo controllo può essere rimosso visto che da swagger
-    # consento solo customer o owner come possibili valori, altrimenti
-    # connexion restituisce un BAD REQUEST
-    '''
-    if new_user.role != 'customer' and new_user.role != 'owner':
-        return connexion.problem(403, "Forbidden", "Only customer or restaurant owner profiles are allowed")
-    ''' 
 
     db_session.add(new_user)
     db_session.commit()
     
-    #return make_response('OK')
     return "OK"
 
 
@@ -76,8 +65,10 @@ def get_user_by_ID(user_id):
 def edit_user():
     r = request.json
 
-    email = r['current_user_email']
     old_password = r['current_user_old_password']
+
+    # TODO che ci sia almeno uno tra current_user_new_password, user_new_phone
+    #altrimenti dare 400
     new_password = r['current_user_new_password']
     phone = r['user_new_phone']
 
@@ -89,7 +80,6 @@ def edit_user():
         if(old_password != new_password):
             user.set_password(new_password)
         db_session.commit()
-        #return connexion.problem(200, "OK", "User details have been updated")
         return "OK"
     else:
         return connexion.problem(401, "Unauthorized", "Wrong password")
@@ -247,6 +237,7 @@ def mark_positive():
 def delete_user():
     r = request.json
 
+    # TODO non piu email ma password se password sbagliata errore 
     current_user = r['current_user_email']
 
     user_to_delete = db_session.query(User).filter(User.email == current_user).first()
@@ -254,8 +245,8 @@ def delete_user():
     if user_to_delete is None:
         return connexion.problem(404, "Not Found", "Something is not working. This email doesn't exist")
 
-    # TODO waiting Emilio's microservice
-    # TODO waiting Reservation microservice team
+    # TODO waiting Emilio's microservice (if owner)
+    # TODO waiting Reservation microservice team (if user)
     '''
     if user_to_delete.role == 'owner':
         # delete first the restaurant and then treat it as a customer
@@ -274,6 +265,7 @@ def delete_user():
     db_session.commit()
 
     return 'OK' 
+
 
 def notification():
     r = request.json
