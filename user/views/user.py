@@ -3,7 +3,11 @@ from database import User, db_session, Quarantine, Notification
 from flask import request, jsonify, abort, make_response
 from datetime import datetime, timedelta
 import connexion
+import requests
 
+RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
+RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+REQUEST_TIMEOUT_SECONDS = 1
 
 def create_user():
     r = request.json
@@ -62,22 +66,27 @@ def get_user_by_ID(user_id):
     return data
 
 
-def edit_user():
+def edit_user(user_id):
     r = request.json
 
     old_password = r['current_user_old_password']
 
-    # TODO che ci sia almeno uno tra current_user_new_password, user_new_phone
-    #altrimenti dare 400
-    new_password = r['current_user_new_password']
-    phone = r['user_new_phone']
+    if 'current_user_new_password' not in r and 'user_new_phone' not in r:
+        return connexion.problem(400, "Bad request", "Request body is not valid JSON")
 
-    user = db_session.query(User).filter(User.email == email).first()
+    new_password = ""
+    phone = ""
+    if 'current_user_new_password' in r:
+        new_password = r['current_user_new_password']
+    if 'user_new_phone' in r:
+        phone = r['user_new_phone']
+
+    user = db_session.query(User).filter(User.id == user_id).first()
             
     if (user is not None and user.authenticate(old_password)):
-        if(user.phone != phone):
+        if(user.phone != phone and phone != ""):
             user.phone = phone
-        if(old_password != new_password):
+        if(old_password != new_password and new_password != ""):
             user.set_password(new_password)
         db_session.commit()
         return "OK"
@@ -234,33 +243,50 @@ def mark_positive():
     return "OK"
 
 
-def delete_user():
+def delete_user(user_id):
     r = request.json
 
-    # TODO non piu email ma password se password sbagliata errore 
-    current_user = r['current_user_email']
+    password = r['current_user_password']
 
-    user_to_delete = db_session.query(User).filter(User.email == current_user).first()
+    user_to_delete = db_session.query(User).filter(User.id == user_id).first()
 
     if user_to_delete is None:
-        return connexion.problem(404, "Not Found", "Something is not working. This email doesn't exist")
+        return connexion.problem(404, "Not Found", "Something is not working. This user doesn't exist")
 
-    # TODO waiting Emilio's microservice (if owner)
-    # TODO waiting Reservation microservice team (if user)
-    '''
+    if user_to_delete.authenticate(password) is False:
+        return connexion.problem(401, "Unauthorized", "Wrong password")
+
+    if user_to_delete.role == 'ha':
+        return connexion.problem(401, "Unauthorized", "Cannot delete health authority")
+
     if user_to_delete.role == 'owner':
-        # delete first the restaurant and then treat it as a customer
-        restaurants = db.session.query(Restaurant).filter(Restaurant.owner_id == user_to_delete.id).all()
-        for res in restaurants:
-            restaurant_delete(res.id)
-    else:                
-        # first delete future reservations               
-        rs = db.session.query(Reservation).filter(
-            Reservation.booker_id == user_to_delete.id,
-            Reservation.date >= datetime.datetime.now()).all() 
-        for r in rs: 
-            deletereservation(r.id)
-    '''
+
+        user_to_delete.delete_user_reservation = True
+        data = dict(owner_id=user_id)
+
+        try:
+            reply = requests.delete(RESTAURANT_SERVICE+'restaurants', json=data, timeout=REQUEST_TIMEOUT_SECONDS)
+
+            if reply.status_code == 200:
+                user_to_delete.delete_user_restaurant = True
+
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            print("RESTAURANT_SERVICE not available Celery will handle the task")
+    else:
+
+        user_to_delete.delete_user_restaurant = True
+        data = dict(user_id=user_id)
+
+        try:
+            reply = requests.delete(RESERVATION_SERVICE+'reservations', json=data, timeout=REQUEST_TIMEOUT_SECONDS)
+
+            if reply.status_code == 200:
+                user_to_delete.delete_user_reservation = True
+
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            print("RESERVATION_SERVICE not available Celery will handle the task")
+
+
     user_to_delete.is_active = False
     db_session.commit()
 

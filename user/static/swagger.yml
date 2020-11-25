@@ -172,7 +172,18 @@ paths:
                 detail: "Wrong password"
                 status: 401
                 title: "Unauthorized"
-                type: "about:blank"    
+                type: "about:blank"  
+        400:
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                detail: "Request body is not valid JSON"
+                status: 400
+                title: "Bad Request"
+                type: "about:blank"  
     delete:
       tags:
       - Users
@@ -206,14 +217,29 @@ paths:
             text/plain:
               schema:
                 type: string
-                example: User is going to be deleted      
+                example: User is going to be deleted    
         404:
           description: User not found
           content:
-            text/plain:
-              schema:
-                type: string
-                example: User not found       
+            application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+                example:
+                  detail: "Something is not working. This user doesn't exist"
+                  status: 404
+                  title: "Not Found"
+                  type: "about:blank"        
+        401:
+          description: User password is wrong
+          content:
+            application/json:
+                schema:
+                  $ref: '#/components/schemas/Error'
+                example:
+                  detail: "Wrong password"
+                  status: 401
+                  title: "Unauthorized"
+                  type: "about:blank"         
   /login:
     post:
         tags:

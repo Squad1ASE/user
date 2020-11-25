@@ -3,7 +3,7 @@ from database import db_session, User
 from sqlalchemy import exc
 from datetime import datetime, timedelta
 from utilities import customers_example, restaurant_owner_example
-from utilities import create_user_EP, user_login_EP, edit_user_EP, get_users_EP, get_user_by_ID_EP
+from utilities import create_user_EP, user_login_EP, edit_user_EP, get_users_EP, get_user_by_ID_EP, wrong_edit_user_EP
 from utilities import get_patient_EP, insert_admin, mark_patient_EP, delete_user_EP
 from utilities import notification_contact_with_positive_customer
 from utilities import notification_contact_with_positive_owner
@@ -13,10 +13,10 @@ from utilities import set_notification_EP
 from werkzeug.security import generate_password_hash, check_password_hash
 from unittest import mock
 from unittest.mock import patch
-from api_call import RESERVATION_contact_tracing
+from app import launch_contact_tracing, del_inactive_users
 
 
-def test_unit_create(test_app):
+def test_create(test_app):
     app, test_client = test_app
     
     customer = customers_example[0]
@@ -134,14 +134,19 @@ def test_component_edit(test_app):
     create_user_EP(test_client, **customer)
     
     data = dict(
-        current_user_email=customer['email'],
         user_new_phone=customer['phone'],
         current_user_old_password=customer['password'],
         current_user_new_password="new_password"
     )
 
+    user_id = db_session.query(User).filter(User.email == customer['email']).first()
+
+    ##### FORCE WRONG PARAMETERS #####
+    assert wrong_edit_user_EP(test_client, user_id.id, **data).status_code == 400
+
     ##### EDIT USER PASSWORD #####
-    assert edit_user_EP(test_client, **data).status_code == 200
+    assert edit_user_EP(test_client, user_id.id, **data).status_code == 200
+
     ##### LOGIN USER WITH NEW PASSWORD #####
     assert user_login_EP(test_client, 
                         customer['email'], 
@@ -158,7 +163,7 @@ def test_component_edit(test_app):
     ##### EDIT USER PHONE #####
     data['current_user_old_password'] = data['current_user_new_password']
     data['user_new_phone'] = new_phone_number
-    assert edit_user_EP(test_client, **data).status_code == 200
+    assert edit_user_EP(test_client, user_id.id,  **data).status_code == 200
     
     # check if phone number really changed
     getuser = db_session.query(User).filter(User.email == customer['email']).first()
@@ -166,7 +171,7 @@ def test_component_edit(test_app):
 
     ##### EDIT USER WITH WRONG PASSWORD #####
     data['current_user_old_password'] = "wrongpassword"
-    assert edit_user_EP(test_client, **data).status_code == 401
+    assert edit_user_EP(test_client, user_id.id,  **data).status_code == 401
 
 
 def test_component_getusers(test_app):
@@ -294,7 +299,13 @@ def test_component_mark_patient(test_app):
 
     ##### MARK ADMIN AS POSITIVE #####
     assert mark_patient_EP(test_client, "admin@admin.com").status_code == 403
+
+
+    ##### LOGIN AS POSITIVE #####
+    assert user_login_EP(test_client, customer['email'], customer['password']).status_code == 200
     
+    ##### DO TRACING #####
+    launch_contact_tracing()
 
 def test_component_notification(test_app):
     app, test_client = test_app
@@ -401,12 +412,30 @@ def test_component_delete(test_app):
 
     create_user_EP(test_client, **customer)
 
-    assert delete_user_EP(test_client, "notexisting@email.com").status_code == 404
+    not_existing_user = 50
 
-    assert delete_user_EP(test_client, customer['email']).status_code == 200
+    user_id = db_session.query(User).filter(User.email == customer['email']).first()
+
+    assert delete_user_EP(test_client, not_existing_user, customer['password']).status_code == 404
+
+    assert delete_user_EP(test_client, user_id.id, "wrongpassword").status_code == 401
+
+    assert delete_user_EP(test_client, 1, "healthauthority").status_code == 401
+
+    assert delete_user_EP(test_client, user_id.id, customer['password']).status_code == 200
 
     assert user_login_EP(test_client, customer['email'], customer['password']).status_code == 401
 
-@patch('app.RESERVATION_contact_tracing')
-def test_component_contact_tracing(mock1, test_app):
-    mock1.return_value.status_code.return_value = 200
+    ##### GET A NON ACTIVE USER #####
+    assert get_patient_EP(test_client, customer['email']).status_code == 403
+
+
+    owner = restaurant_owner_example[0]
+    create_user_EP(test_client, **owner)
+
+    user_id = db_session.query(User).filter(User.email == owner['email']).first()
+    assert delete_user_EP(test_client, user_id.id, customer['password']).status_code == 200
+    
+    ##### GET A NON ACTIVE USER #####
+
+    del_inactive_users()

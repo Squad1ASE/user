@@ -75,6 +75,10 @@ class User(db):
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     is_anonymous = False
+    
+    # this is usefull when a user is going to be deleted
+    delete_user_restaurant = Column(Boolean, default=False)
+    delete_user_reservation = Column(Boolean, default=False)
 
 
     def __init__(self, *args, **kw):

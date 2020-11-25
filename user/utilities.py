@@ -199,16 +199,24 @@ def user_login_EP(test_client, email=customers_example[0]['email'], password=cus
     return test_client.post('/login', json=data, follow_redirects=True)
 
 def edit_user_EP(
-    test_client, current_user_email, user_new_phone, current_user_old_password, current_user_new_password
+    test_client, current_user_id, user_new_phone, current_user_old_password, current_user_new_password
 ):
     data = dict(
-        current_user_email=current_user_email,
         user_new_phone=user_new_phone,
         current_user_old_password=current_user_old_password,
         current_user_new_password=current_user_new_password
     )
-    return test_client.post('/users', json=data, follow_redirects=True)
+    return test_client.post('/users/'+str(current_user_id), json=data, follow_redirects=True)
 
+def wrong_edit_user_EP(
+    test_client, current_user_id, user_new_phone, current_user_old_password, current_user_new_password
+):
+    data = dict(
+        no_new_phone=user_new_phone,
+        current_user_old_password=current_user_old_password,
+        no_new_password=current_user_new_password
+    )
+    return test_client.post('/users/'+str(current_user_id), json=data, follow_redirects=True)
 def get_users_EP(test_client, email):
 
     if email == "":
@@ -233,8 +241,10 @@ def set_notification_EP(test_client, notificationslist):
 
     return test_client.put('/notification', json=notificationslist)
 
-def delete_user_EP(test_client, current_user_email):
+def delete_user_EP(test_client, current_user_id, current_user_password):
     
-    data = dict(current_user_email=current_user_email)
+    data = dict(
+        current_user_password=current_user_password
+    )
 
-    return test_client.delete('/users', json=data)
+    return test_client.delete('/users/'+str(current_user_id), json=data)

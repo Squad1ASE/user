@@ -3,7 +3,11 @@ from database import User, Quarantine
 from flask import jsonify
 from celery import Celery
 import requests
-from api_call import RESERVATION_contact_tracing
+
+
+RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
+RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+REQUEST_TIMEOUT_SECONDS = 1
 
 def create_app():
     logging.basicConfig(level=logging.INFO)
@@ -53,7 +57,7 @@ def make_celery(application):
 
 celery = make_celery(application)
 
-# TODO chiamata a reservation, basta che passo booker_id, start_date e end_date per i 14 giorni
+# TODO call to reservation, booker_id is enough, start_date and end_date 14 days
 @celery.task
 def del_inactive_users():
 
@@ -62,16 +66,38 @@ def del_inactive_users():
         User.firstname != 'Anonymous').all()
 
     for user in users_to_delete:
-        # TODO contatta servizio RESERVATION per cancellare prenotazioni, questo solo se fatto in automatico
-        # TODO contatta servizio RESTAURANT per cancellare ristoranti
-        # if condizioni di prima soddisfatte: (spostare di un tab)
+
+        if user.role == 'owner' and user.delete_user_restaurant is False:
+
+            data = dict(owner_id=user.id)
+
+            try:
+                reply = requests.delete(RESTAURANT_SERVICE+'restaurants', json=data, timeout=REQUEST_TIMEOUT_SECONDS)
+
+                if reply.status_code == 200:
+                    user.delete_user_restaurant = True
+
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                print("RESTAURANT_SERVICE is not available Celery will handle the task later")
+        elif user.role == 'customer' and user.delete_user_reservation is False:
+
+            data = dict(user_id=user.id)
+
+            try:
+                reply = requests.delete(RESERVATION_SERVICE+'reservations', json=data, timeout=REQUEST_TIMEOUT_SECONDS)
+
+                if reply.status_code == 200:
+                    user.delete_user_reservation = True
+
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                print("RESERVATION_SERVICE is not available Celery will handle the task later")
 
         # after 14 days from its last computed reservation  
         inobservation = database.db_session.query(Quarantine).filter(
             Quarantine.user_id == user.id,
             Quarantine.in_observation == True).first()
 
-        if inobservation is None:
+        if inobservation is None and user.delete_user_restaurant is True and user.delete_user_reservation is True:
             # TODO verifica che non ci siano prenotazioni negli ultimi 14 giorni
             user.email = 'invalid_email' + str(user.id) + '@a.b'
             user.phone = 0
@@ -88,11 +114,23 @@ def launch_contact_tracing():
         Quarantine.contact_tracing_done == False).all()
 
     for user in quarantine_users_no_contact:
-        # TODO check if this is a post, get ecc
-        # reply = RESERVATION_contact_tracing(user.email)
-        user.contact_tracing_done = True
+
+        data = dict(
+            email=user.user_id,
+            start_date=str(user.start_date.strftime("%d/%m/%Y"))
+        )
+
+        try:
+            reply = requests.delete(RESERVATION_SERVICE+'reservations', json=data, timeout=REQUEST_TIMEOUT_SECONDS)
+
+            if reply.status_code == 200:
+                user.contact_tracing_done = True
+                database.db_session.commit()
+
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            print("RESERVATION_SERVICE is not available Celery will handle the task later")
+
     
-    database.db_session.commit()
 
 if __name__ == '__main__':
     app.run(port=5060)
