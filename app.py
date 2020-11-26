@@ -3,10 +3,13 @@ from database import User, Quarantine
 from flask import jsonify
 from celery import Celery
 import requests
+import os
 
 
-RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
-RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+#RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
+#RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+RESERVATION_SERVICE = os.environ['RESERVATION_SERVICE']
+RESTAURANT_SERVICE = os.environ['RESTAURANT_SERVICE']
 REQUEST_TIMEOUT_SECONDS = 1
 
 def create_app():
@@ -27,10 +30,10 @@ def shutdown_session(exception=None):
 def make_celery(application):
     celery = Celery(
         application.import_name,
-        #broker=os.environ['CELERY_BROKER_URL'],
-        #backend=os.environ['CELERY_BACKEND_URL']
-        backend='redis://localhost:6379',
-        broker='redis://localhost:6379'
+        broker=os.environ['CELERY_USER_BROKER_URL'],
+        backend=os.environ['CELERY_USER_BACKEND_URL']
+        #backend='redis://localhost:6379',
+        #broker='redis://localhost:6379'
     )
     celery.conf.update(application.config)
     celery.conf.beat_schedule = {
@@ -133,4 +136,4 @@ def launch_contact_tracing():
     
 
 if __name__ == '__main__':
-    app.run(port=5060)
+    app.run(host='0.0.0.0', port=5060)

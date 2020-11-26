@@ -1,8 +1,10 @@
 from database import User
 import datetime
+import os
 import requests
 
-USER_SERVICE = "http://127.0.0.1:5060"
+#USER_SERVICE = "http://127.0.0.1:5060"
+USER_SERVICE = os.environ['USER_SERVICE']
 
 # --- UTILITIES USER ---
 def insert_admin(db_session, app):

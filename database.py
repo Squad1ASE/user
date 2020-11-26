@@ -8,10 +8,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 from static.enum import NOTIFICATION_TYPE
 
-#DATABASEURI = os.environ['DATABASE_URI']
+DATABASEURI = os.environ['DATABASE_USER_URI']
 db = declarative_base()
-#engine = create_engine(DATABASEURI, convert_unicode=True)
-engine = create_engine('sqlite:///user.db', convert_unicode=True)
+engine = create_engine(DATABASEURI, convert_unicode=True)
+#engine = create_engine('sqlite:///user.db', convert_unicode=True)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False,
                                              bind=engine))
 

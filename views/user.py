@@ -4,9 +4,12 @@ from flask import request, jsonify, abort, make_response
 from datetime import datetime, timedelta
 import connexion
 import requests
+import os
 
-RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
-RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+#RESTAURANT_SERVICE = 'http://127.0.0.1:5070/'
+#RESERVATION_SERVICE = 'http://127.0.0.1:5100/'
+RESERVATION_SERVICE = os.environ['RESERVATION_SERVICE']
+RESTAURANT_SERVICE = os.environ['RESTAURANT_SERVICE']
 REQUEST_TIMEOUT_SECONDS = 1
 
 def create_user():
